@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "sync-must-simple",
+  "version": "0.0.1",
+  "description": "LAN-only scroll position sync extension.",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "optional_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sync-must-simple@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
