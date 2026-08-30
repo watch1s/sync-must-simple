@@ -5,29 +5,42 @@ const browserAPI = globalThis.browser || globalThis.chrome;
 let debounceTimer = null;
 let isRestoring = false;
 
+function getScrollHeight() {
+    return Math.max(
+        document.body.scrollHeight, document.documentElement.scrollHeight,
+        document.body.offsetHeight, document.documentElement.offsetHeight,
+        document.body.clientHeight, document.documentElement.clientHeight
+    );
+}
+
+function getClientHeight() {
+    return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+}
+
+function getScrollTop() {
+    return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+}
+
 function getScrollPercent() {
-    const h = document.documentElement;
-    const b = document.body;
-    const st = 'scrollTop';
-    const sh = 'scrollHeight';
+    const scrollHeight = getScrollHeight();
+    const clientHeight = getClientHeight();
+    const maxScroll = scrollHeight - clientHeight;
     
-    const scrollHeight = (h[sh] || b[sh]) - h.clientHeight;
-    if (scrollHeight <= 0) return 0;
+    if (maxScroll <= 0) return 0;
     
-    return (h[st] || b[st]) / scrollHeight;
+    return getScrollTop() / maxScroll;
 }
 
 function setScrollPercent(percent) {
-    const h = document.documentElement;
-    const b = document.body;
-    const sh = 'scrollHeight';
+    const scrollHeight = getScrollHeight();
+    const clientHeight = getClientHeight();
+    const maxScroll = scrollHeight - clientHeight;
     
-    const scrollHeight = (h[sh] || b[sh]) - h.clientHeight;
-    if (scrollHeight <= 0) return;
+    if (maxScroll <= 0) return;
     
     isRestoring = true;
     window.scrollTo({
-        top: scrollHeight * percent,
+        top: maxScroll * percent,
         behavior: 'smooth'
     });
     
