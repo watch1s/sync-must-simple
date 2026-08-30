@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 )
@@ -18,6 +19,19 @@ func getLocalIP() string {
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String()
+}
+
+func PromptUser(title, text string) bool {
+	if _, err := exec.LookPath("zenity"); err == nil {
+		cmd := exec.Command("zenity", "--question", "--title="+title, "--text="+text)
+		return cmd.Run() == nil
+	}
+	if _, err := exec.LookPath("kdialog"); err == nil {
+		cmd := exec.Command("kdialog", "--yesno", text, "--title", title)
+		return cmd.Run() == nil
+	}
+	fmt.Printf("\n[PEER REQUEST] %s\n%s\n(Auto-accepted because no GUI prompt tool found)\n", title, text)
+	return true
 }
 
 func RunApp(onReady func()) {

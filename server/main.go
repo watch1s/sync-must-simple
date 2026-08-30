@@ -95,6 +95,7 @@ func main() {
 	lanMux := http.NewServeMux()
 	lanMux.HandleFunc("/peer/sync", lanMiddleware(handlers.HandlePeerSync))
 	lanMux.HandleFunc("/peer/state", lanMiddleware(handlers.HandlePeerState))
+	lanMux.HandleFunc("/peer/request", lanMiddleware(handlers.HandlePeerRequest))
 	lanMux.HandleFunc("/peer/ping", lanMiddleware(handlers.HandlePeerPing))
 	lanMux.HandleFunc("/peers", lanMiddleware(handlers.HandlePeers))
 	lanMux.HandleFunc("/manage", lanMiddleware(HandleManage))

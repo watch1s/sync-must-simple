@@ -43,6 +43,7 @@ var (
 	procShellExecuteW     = shell32.NewProc("ShellExecuteW")
 	procShell_NotifyIconW = shell32.NewProc("Shell_NotifyIconW")
 	procGetModuleHandleW  = kernel32.NewProc("GetModuleHandleW")
+	procMessageBoxW       = user32.NewProc("MessageBoxW")
 )
 
 const (
@@ -138,6 +139,19 @@ func getLocalIP() string {
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String()
+}
+
+func PromptUser(title, text string) bool {
+	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	textPtr, _ := syscall.UTF16PtrFromString(text)
+
+	ret, _, _ := procMessageBoxW.Call(
+		0,
+		uintptr(unsafe.Pointer(textPtr)),
+		uintptr(unsafe.Pointer(titlePtr)),
+		uintptr(0x00000004|0x00000020|0x00040000), // MB_YESNO | MB_ICONQUESTION | MB_TOPMOST
+	)
+	return ret == 6 // IDYES
 }
 
 // Native Win32 clipboard copy - zero process execution, zero flashing windows

@@ -96,10 +96,16 @@ const manageHTML = `<!DOCTYPE html>
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ address: address, name: name })
-            }).then(function() {
+            }).then(function(res) {
+                if (!res.ok) {
+                    return res.text().then(function(text) { throw new Error(text); });
+                }
                 document.getElementById('peerAddress').value = '';
                 document.getElementById('peerName').value = '';
                 loadPeers();
+                alert('Peer added successfully!');
+            }).catch(function(err) {
+                alert('Failed to add peer: ' + err.message);
             });
         }
 

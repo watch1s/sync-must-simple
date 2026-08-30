@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -86,25 +87,54 @@ func (h *Handlers) HandlePeerSync(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[Peer Sync In] Received update from %s for %s: scroll=%.2f%%", r.RemoteAddr, state.URL, state.ScrollPercent*100)
 
-	// Auto-register sender as a peer if not already present
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil && host != "" && host != "127.0.0.1" && host != "::1" {
-		ip := net.ParseIP(host)
-		if ip != nil {
-			if ip4 := ip.To4(); ip4 != nil {
-				host = ip4.String()
-			}
-		}
-		peerAddr := host + ":8788"
-		_ = h.db.AddPeer(peerAddr, "Auto-discovered Peer")
-	}
-
 	h.hub.Broadcast(state)
 	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handlers) HandlePeerState(w http.ResponseWriter, r *http.Request) {
 	h.GetState(w, r)
+}
+
+func (h *Handlers) HandlePeerRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	cleanAddr := cleanPeerAddress(req.Address)
+	
+	// Check if already a peer
+	peers, _ := h.db.ListPeers()
+	exists := false
+	for _, p := range peers {
+		if cleanPeerAddress(p.Address) == cleanAddr {
+			exists = true
+			break
+		}
+	}
+	
+	if !exists {
+		title := "New Peer Request"
+		text := fmt.Sprintf("A new peer wants to connect:\n\nName: %s\nAddress: %s\n\nDo you want to accept this peer?", req.Name, cleanAddr)
+		
+		if PromptUser(title, text) {
+			_ = h.db.AddPeer(cleanAddr, req.Name)
+			w.WriteHeader(http.StatusOK)
+		} else {
+			http.Error(w, "Peer rejected by user", http.StatusForbidden)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (h *Handlers) HandlePeerPing(w http.ResponseWriter, r *http.Request) {
@@ -173,6 +203,23 @@ func (h *Handlers) HandlePeers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cleanAddr := cleanPeerAddress(req.Address)
+
+		// Before adding to DB, send a peer request to the remote
+		hostname, _ := os.Hostname()
+		myAddr := fmt.Sprintf("%s:8788", getLocalIP())
+		
+		peerReqBody, _ := json.Marshal(map[string]string{
+			"name":    hostname,
+			"address": myAddr,
+		})
+		
+		client := &http.Client{Timeout: 30 * time.Second} // Allow time for user to click
+		resp, err := client.Post("http://"+cleanAddr+"/peer/request", "application/json", bytes.NewReader(peerReqBody))
+		if err != nil || resp.StatusCode != http.StatusOK {
+			http.Error(w, "Peer rejected the request or is unreachable", http.StatusForbidden)
+			return
+		}
+
 		if err := h.db.AddPeer(cleanAddr, req.Name); err != nil {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
