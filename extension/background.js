@@ -1,34 +1,16 @@
 console.log("sync-must-simple background script loaded");
 
+const SERVER_ADDRESS = "127.0.0.1:8787";
+
 let ws = null;
 let reconnectTimer = null;
 let localStateCache = {}; // URL -> state
 const DEVICE_ID = "device-" + Math.random().toString(36).substr(2, 9);
 
-let serverAddress = ""; // Loaded from storage
-
-async function init() {
-    const data = await browser.storage.local.get(['serverAddress']);
-    if (data.serverAddress) {
-        serverAddress = data.serverAddress;
-        connectWS();
-    }
-}
-
-// Listen for settings changes
-browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.serverAddress) {
-        serverAddress = changes.serverAddress.newValue;
-        if (ws) ws.close(); // will trigger reconnect with new address
-        if (!ws && serverAddress) connectWS();
-    }
-});
-
 function connectWS() {
-    if (!serverAddress) return;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     
-    const wsUrl = `ws://${serverAddress}/ws`;
+    const wsUrl = `ws://${SERVER_ADDRESS}/ws`;
     console.log("Connecting to WebSocket:", wsUrl);
     
     try {
@@ -78,15 +60,12 @@ function connectWS() {
 
 function scheduleReconnect() {
     clearTimeout(reconnectTimer);
-    if (serverAddress) {
-        reconnectTimer = setTimeout(connectWS, 5000);
-    }
+    reconnectTimer = setTimeout(connectWS, 5000);
 }
 
 async function fetchState() {
-    if (!serverAddress) return;
     try {
-        const res = await fetch(`http://${serverAddress}/state`);
+        const res = await fetch(`http://${SERVER_ADDRESS}/state`);
         if (res.ok) {
             const states = await res.json();
             for (const s of states) {
@@ -99,7 +78,6 @@ async function fetchState() {
 }
 
 async function updateState(url, scrollPercent) {
-    if (!serverAddress) return;
     let site = "unknown";
     try {
         site = new URL(url).hostname || "unknown";
@@ -118,7 +96,7 @@ async function updateState(url, scrollPercent) {
     localStateCache[url] = state;
     
     try {
-        await fetch(`http://${serverAddress}/state`, {
+        await fetch(`http://${SERVER_ADDRESS}/state`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(state)
@@ -129,13 +107,36 @@ async function updateState(url, scrollPercent) {
 }
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "PING_SERVER") {
+        (async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const res = await fetch(`http://${SERVER_ADDRESS}/state`, {
+                    cache: "no-store",
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    sendResponse({ ok: true });
+                } else {
+                    sendResponse({ ok: false });
+                }
+            } catch (err) {
+                clearTimeout(timeoutId);
+                sendResponse({ ok: false });
+            }
+        })();
+        return true;
+    }
+    
     if (message.type === "GET_STATE") {
         sendResponse({ state: localStateCache[message.url] });
         return true; 
     }
     
     if (message.type === "UPDATE_STATE") {
-        if (serverAddress && (!ws || ws.readyState !== WebSocket.OPEN)) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
             connectWS();
         }
         updateState(message.payload.url, message.payload.scrollPercent);
@@ -144,5 +145,4 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-// Run init
-init();
+connectWS();

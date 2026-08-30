@@ -3,8 +3,9 @@ package main
 import (
 	"database/sql"
 	"sync"
+	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type DB struct {
@@ -13,7 +14,7 @@ type DB struct {
 }
 
 func InitDB(filepath string) (*DB, error) {
-	db, err := sql.Open("sqlite3", filepath)
+	db, err := sql.Open("sqlite", filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +26,11 @@ func InitDB(filepath string) (*DB, error) {
 		scroll_percent REAL,
 		updated_at INTEGER,
 		device_id TEXT
+	);
+	CREATE TABLE IF NOT EXISTS peers (
+		address TEXT PRIMARY KEY,
+		name TEXT,
+		added_at INTEGER
 	);
 	`
 	if _, err := db.Exec(createTableQuery); err != nil {
@@ -71,4 +77,46 @@ func (db *DB) GetAllStates() ([]SyncState, error) {
 		states = append(states, s)
 	}
 	return states, nil
+}
+
+func (db *DB) AddPeer(address, name string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	query := `
+	INSERT INTO peers (address, name, added_at)
+	VALUES (?, ?, ?)
+	ON CONFLICT(address) DO UPDATE SET name = excluded.name;
+	`
+	_, err := db.sql.Exec(query, address, name, time.Now().UnixMilli())
+	return err
+}
+
+func (db *DB) RemovePeer(address string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	_, err := db.sql.Exec("DELETE FROM peers WHERE address = ?", address)
+	return err
+}
+
+func (db *DB) ListPeers() ([]PeerInfo, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	rows, err := db.sql.Query("SELECT address, name, added_at FROM peers")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var peers []PeerInfo
+	for rows.Next() {
+		var p PeerInfo
+		if err := rows.Scan(&p.Address, &p.Name, &p.AddedAt); err != nil {
+			return nil, err
+		}
+		peers = append(peers, p)
+	}
+	return peers, nil
 }

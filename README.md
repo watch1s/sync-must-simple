@@ -16,19 +16,18 @@ The server is a single, lightweight binary that runs on your computer (typically
 *(Note: When you download the release from GitHub, you can just double-click the `.exe` on Windows or run the binary on Linux. A system tray icon will appear indicating the server is running.)*
 
 ### Compiling from Source
-If you want to build it yourself, you must compile it natively on your target OS (CGO is required for the system tray).
+The server is built with **Pure Go (Zero CGO / No C compiler required)** and runs natively on Windows (with System Tray) and Linux/macOS.
 
 **Windows:**
-1. Ensure you have Go and a C compiler (like GCC via MinGW) installed.
-2. Run `.\build.ps1` in PowerShell.
-3. The binary will be output to `dist\sync-must-simple.exe`.
+1. Run `.\build.ps1` in PowerShell.
+2. The binary will be generated at `dist\sync-must-simple.exe`.
+3. Double-click to run in the background (System Tray / Hidden Icons).
 
-**Linux:**
-1. Run `make deps` to install `libgtk-3-dev` and `libappindicator3-dev`.
-2. Run `make build`.
-3. The binary will be output to `dist/sync-must-simple-linux`.
+**Linux / macOS:**
+1. Run `make build` (or `go build -o dist/sync-must-simple ./server`).
+2. The binary will be generated at `dist/sync-must-simple-linux`.
 
-*(For CGO-less pure Go testing, just run `go run ./server` from the root).*
+*(For quick testing during development, just run `go run ./server`).*
 
 ---
 

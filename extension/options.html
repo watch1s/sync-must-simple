@@ -16,23 +16,19 @@
         ul { list-style: none; padding: 0; margin-top: 1rem; }
         li { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #dee2e6; }
         .status { margin-left: 10px; font-weight: 500; font-size: 0.9rem; }
-        .success { color: #198754; }
-        .error { color: #dc3545; }
+        .status-bar { padding: 1rem; margin-bottom: 2rem; border-radius: 8px; font-weight: 500; text-align: center; }
+        .success { color: #0f5132; background-color: #d1e7dd; border: 1px solid #badbcc; }
+        .error { color: #842029; background-color: #f8d7da; border: 1px solid #f5c2c7; }
     </style>
 </head>
 <body>
     <h1>sync-must-simple</h1>
     
-    <div class="section">
-        <h2>1. Server Configuration</h2>
-        <p>Enter the local IP and port of your Go server (e.g. <code>192.168.1.100:8787</code> or <code>127.0.0.1:8787</code>).</p>
-        <input type="text" id="server-address" placeholder="127.0.0.1:8787">
-        <button id="save-server">Save & Test Connection</button>
-        <span id="server-status" class="status"></span>
-    </div>
+    <div id="client-status" class="status-bar">Checking client status...</div>
 
     <div class="section">
-        <h2>2. Synced Sites</h2>
+        <h2>Synced Sites</h2>
+        <p>Make sure the sync-must-simple client is running on this computer.</p>
         <p>Add domains where the extension should track and sync your reading position.</p>
         <input type="text" id="new-domain" placeholder="example.com">
         <button id="add-domain">Add Domain</button>

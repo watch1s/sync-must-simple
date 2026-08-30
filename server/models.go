@@ -7,3 +7,9 @@ type SyncState struct {
 	UpdatedAt     int64   `json:"updatedAt"`
 	DeviceID      string  `json:"deviceId"`
 }
+
+type PeerInfo struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+	AddedAt int64  `json:"addedAt"`
+}
