@@ -1,5 +1,7 @@
 console.log("sync-must-simple content script loaded on", window.location.href);
 
+const browserAPI = globalThis.browser || globalThis.chrome;
+
 let debounceTimer = null;
 let isRestoring = false;
 
@@ -35,9 +37,23 @@ function setScrollPercent(percent) {
     }, 1500);
 }
 
+function isSameUrl(url1, url2) {
+    if (!url1 || !url2) return false;
+    if (url1 === url2) return true;
+    try {
+        const u1 = new URL(url1);
+        const u2 = new URL(url2);
+        return u1.origin === u2.origin && 
+               u1.pathname.replace(/\/$/, '') === u2.pathname.replace(/\/$/, '') && 
+               u1.search === u2.search;
+    } catch (e) {
+        return url1.split('#')[0].replace(/\/$/, '') === url2.split('#')[0].replace(/\/$/, '');
+    }
+}
+
 // 1. Ask background for current position when loaded
 setTimeout(() => {
-    browser.runtime.sendMessage({ type: "GET_STATE", url: window.location.href }).then(response => {
+    browserAPI.runtime.sendMessage({ type: "GET_STATE", url: window.location.href }).then(response => {
         if (response && response.state && response.state.scrollPercent !== undefined) {
             console.log("Restoring scroll position:", response.state.scrollPercent);
             setScrollPercent(response.state.scrollPercent);
@@ -53,7 +69,7 @@ window.addEventListener('scroll', () => {
     debounceTimer = setTimeout(() => {
         const percent = getScrollPercent();
         console.log("Syncing scroll position:", percent);
-        browser.runtime.sendMessage({
+        browserAPI.runtime.sendMessage({
             type: "UPDATE_STATE",
             payload: {
                 url: window.location.href,
@@ -64,9 +80,9 @@ window.addEventListener('scroll', () => {
 });
 
 // 3. Listen for broadcast updates from background
-browser.runtime.onMessage.addListener((message) => {
-    if (message.type === "SYNC_BROADCAST") {
-        if (message.payload.url === window.location.href) {
+browserAPI.runtime.onMessage.addListener((message) => {
+    if (message.type === "SYNC_BROADCAST" && message.payload) {
+        if (isSameUrl(message.payload.url, window.location.href)) {
             console.log("Received remote sync broadcast:", message.payload.scrollPercent);
             setScrollPercent(message.payload.scrollPercent);
         }

@@ -52,7 +52,7 @@ func (db *DB) SaveState(state SyncState) error {
 		scroll_percent = excluded.scroll_percent,
 		updated_at = excluded.updated_at,
 		device_id = excluded.device_id
-	WHERE excluded.updated_at > sync_state.updated_at;
+	WHERE excluded.updated_at >= sync_state.updated_at;
 	`
 	_, err := db.sql.Exec(query, state.Site, state.URL, state.ScrollPercent, state.UpdatedAt, state.DeviceID)
 	return err

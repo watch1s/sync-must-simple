@@ -1,5 +1,6 @@
 console.log("sync-must-simple background script loaded");
 
+const browserAPI = globalThis.browser || globalThis.chrome;
 const SERVER_ADDRESS = "127.0.0.1:8787";
 
 let ws = null;
@@ -30,18 +31,28 @@ function connectWS() {
     ws.onmessage = (event) => {
         try {
             const state = JSON.parse(event.data);
-            if (state.deviceId !== DEVICE_ID) {
+            console.log("WS received state update:", state);
+            if (state && state.url) {
                 localStateCache[state.url] = state;
-                browser.tabs.query({ url: state.url }).then(tabs => {
-                    for (const tab of tabs) {
-                        browser.tabs.sendMessage(tab.id, {
-                            type: "SYNC_BROADCAST",
-                            payload: state
-                        }).catch(err => {
-                            // Ignored: tab might not have content script injected
-                        });
-                    }
-                });
+                if (state.deviceId !== DEVICE_ID) {
+                    browserAPI.tabs.query({}).then(tabs => {
+                        const targetBaseUrl = state.url.split('#')[0];
+                        for (const tab of tabs) {
+                            if (!tab.url) continue;
+                            const tabBaseUrl = tab.url.split('#')[0];
+                            if (tabBaseUrl === targetBaseUrl || tab.url === state.url) {
+                                browserAPI.tabs.sendMessage(tab.id, {
+                                    type: "SYNC_BROADCAST",
+                                    payload: state
+                                }).catch(() => {
+                                    // Ignored: tab might not have content script injected
+                                });
+                            }
+                        }
+                    }).catch(err => {
+                        console.error("Failed to query tabs for sync broadcast:", err);
+                    });
+                }
             }
         } catch (e) {
             console.error("Failed to parse WS message", e);
@@ -106,7 +117,7 @@ async function updateState(url, scrollPercent) {
     }
 }
 
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "PING_SERVER") {
         (async () => {
             const controller = new AbortController();

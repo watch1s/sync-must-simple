@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -56,6 +59,8 @@ func (h *Handlers) PutState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[Local Extension] Updated state for %s: scroll=%.2f%%", state.URL, state.ScrollPercent*100)
+
 	h.hub.Broadcast(state)
 	h.peers.SyncToAllPeers(state)
 
@@ -77,6 +82,21 @@ func (h *Handlers) HandlePeerSync(w http.ResponseWriter, r *http.Request) {
 	if err := h.db.SaveState(state); err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
+	}
+
+	log.Printf("[Peer Sync In] Received update from %s for %s: scroll=%.2f%%", r.RemoteAddr, state.URL, state.ScrollPercent*100)
+
+	// Auto-register sender as a peer if not already present
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" && host != "127.0.0.1" && host != "::1" {
+		ip := net.ParseIP(host)
+		if ip != nil {
+			if ip4 := ip.To4(); ip4 != nil {
+				host = ip4.String()
+			}
+		}
+		peerAddr := host + ":8788"
+		_ = h.db.AddPeer(peerAddr, "Auto-discovered Peer")
 	}
 
 	h.hub.Broadcast(state)
@@ -121,7 +141,8 @@ func (h *Handlers) HandlePeers(w http.ResponseWriter, r *http.Request) {
 			wg.Add(1)
 			go func(idx int, addr string) {
 				defer wg.Done()
-				resp, err := client.Get("http://" + addr + "/peer/ping")
+				cleanAddr := cleanPeerAddress(addr)
+				resp, err := client.Get("http://" + cleanAddr + "/peer/ping")
 				if err == nil {
 					resp.Body.Close()
 					statuses[idx].Online = true
@@ -146,11 +167,13 @@ func (h *Handlers) HandlePeers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
+		req.Address = strings.TrimSpace(req.Address)
 		if req.Address == "" {
 			http.Error(w, "Address required", http.StatusBadRequest)
 			return
 		}
-		if err := h.db.AddPeer(req.Address, req.Name); err != nil {
+		cleanAddr := cleanPeerAddress(req.Address)
+		if err := h.db.AddPeer(cleanAddr, req.Name); err != nil {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
@@ -164,7 +187,8 @@ func (h *Handlers) HandlePeers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		if err := h.db.RemovePeer(req.Address); err != nil {
+		cleanAddr := cleanPeerAddress(req.Address)
+		if err := h.db.RemovePeer(cleanAddr); err != nil {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
