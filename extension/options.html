@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>sync-must-simple Settings</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; color: #333; }
+        .section { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e9ecef; }
+        h2 { margin-top: 0; font-size: 1.25rem; color: #212529; }
+        p { font-size: 0.95rem; color: #6c757d; }
+        input[type="text"] { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 16px; cursor: pointer; background: #0d6efd; color: white; border: none; border-radius: 4px; font-weight: 500; }
+        button:hover { background: #0b5ed7; }
+        .btn-danger { background: #dc3545; padding: 6px 12px; font-size: 0.85rem; }
+        .btn-danger:hover { background: #bb2d3b; }
+        ul { list-style: none; padding: 0; margin-top: 1rem; }
+        li { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #dee2e6; }
+        .status { margin-left: 10px; font-weight: 500; font-size: 0.9rem; }
+        .success { color: #198754; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>sync-must-simple</h1>
+    
+    <div class="section">
+        <h2>1. Server Configuration</h2>
+        <p>Enter the local IP and port of your Go server (e.g. <code>192.168.1.100:8787</code> or <code>127.0.0.1:8787</code>).</p>
+        <input type="text" id="server-address" placeholder="127.0.0.1:8787">
+        <button id="save-server">Save & Test Connection</button>
+        <span id="server-status" class="status"></span>
+    </div>
+
+    <div class="section">
+        <h2>2. Synced Sites</h2>
+        <p>Add domains where the extension should track and sync your reading position.</p>
+        <input type="text" id="new-domain" placeholder="example.com">
+        <button id="add-domain">Add Domain</button>
+        
+        <ul id="domain-list"></ul>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>
